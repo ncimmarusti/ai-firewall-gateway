@@ -1,4 +1,4 @@
-"""SQLite storage: schema init and simple helpers."""
+"""SQLite storage: schema init, migration, and simple helpers."""
 import sqlite3
 import os
 from contextlib import contextmanager
@@ -18,7 +18,7 @@ def get_conn():
 
 
 def init_db():
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist, then apply any column migrations."""
     with get_conn() as conn:
         conn.executescript(
             """
@@ -31,13 +31,17 @@ def init_db():
             );
 
             CREATE TABLE IF NOT EXISTS prompts (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                prompt      TEXT NOT NULL,
-                model       TEXT,
-                decision    TEXT,          -- 'blocked' or 'allowed'
-                matched_rule TEXT,         -- rule name, if any
-                response    TEXT,          -- LLM response, if allowed
-                created_at  TEXT DEFAULT (datetime('now'))
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                prompt           TEXT NOT NULL,
+                model            TEXT,
+                decision         TEXT,          -- 'blocked' or 'allowed'
+                matched_rule     TEXT,          -- rule name, if any
+                response         TEXT,          -- LLM response (redacted if DLP fired)
+                firewall_enabled INTEGER DEFAULT 1,  -- was the firewall on?
+                leaked           INTEGER DEFAULT 0,   -- did the secret escape to the user?
+                dlp_redacted     INTEGER DEFAULT 0,   -- did output DLP catch & redact it?
+                entities         TEXT,               -- entity types found in the response
+                created_at       TEXT DEFAULT (datetime('now'))
             );
 
             CREATE TABLE IF NOT EXISTS logs (
@@ -48,6 +52,21 @@ def init_db():
             );
             """
         )
+        _migrate(conn)
+
+
+def _migrate(conn):
+    """Add columns that older databases might be missing (SQLite has no
+    'ADD COLUMN IF NOT EXISTS', so we check PRAGMA first)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(prompts)").fetchall()}
+    if "firewall_enabled" not in cols:
+        conn.execute("ALTER TABLE prompts ADD COLUMN firewall_enabled INTEGER DEFAULT 1")
+    if "leaked" not in cols:
+        conn.execute("ALTER TABLE prompts ADD COLUMN leaked INTEGER DEFAULT 0")
+    if "dlp_redacted" not in cols:
+        conn.execute("ALTER TABLE prompts ADD COLUMN dlp_redacted INTEGER DEFAULT 0")
+    if "entities" not in cols:
+        conn.execute("ALTER TABLE prompts ADD COLUMN entities TEXT")
 
 
 def seed_rules():
