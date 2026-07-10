@@ -1,58 +1,63 @@
-# Roadmap — AI Firewall / Gateway POC
+# Roadmap — AI Firewall / Gateway
 
-Check items off as you
-go. GitHub renders `- [ ]` as interactive checkboxes inside issues and PRs, and
-as visible boxes in this file.
-
-**Progress:** 0 / 6 phases complete
+Build phases and planned enhancements. Checked items are done. GitHub renders
+`- [ ]` as interactive checkboxes.
 
 ---
 
-## Phase 0 — Setup & Planning  ·
-- [ ] Create GitHub repo, add README, LICENSE, `.gitignore` (Python + Node)
-- [ ] Commit `REQUIREMENTS.md` and `architecture.mermaid`
-- [ ] Install Ollama, pull `tinyllama` and `mistral`
-- [ ] Confirm both models respond via `ollama run`
-- [ ] Set up Python venv (FastAPI) and Node project (React)
+## Phase 0 — Setup & Planning  ✅
+- [x] Repo, README, architecture diagram, requirements
+- [x] Ollama installed; TinyLlama and Mistral pulled
+- [x] Backend (FastAPI) and frontend (React + Vite) scaffolded
 
-## Phase 1 — Backend Core  ·
-- [ ] Scaffold FastAPI app with `/health` endpoint
-- [ ] Define SQLite schema: `prompts`, `rules`, `logs`
-- [ ] `POST /prompt` — accept prompt, return stubbed response
-- [ ] Wire Ollama call: forward prompt, capture response
-- [ ] Log every request to `logs` table
+## Phase 1 — Backend Core  ✅
+- [x] FastAPI app with `/health`, `/prompt`, `/logs`, `/stats`, `/rules`
+- [x] SQLite schema: prompts, rules, logs
+- [x] Ollama call wired in; every request logged
 
-## Phase 2 — Firewall Engine  ·
-- [ ] Rules loader: read active rules from DB on each request
-- [ ] Pattern-matching inspection (keyword + regex)
-- [ ] Block vs. allow decision + reason logging
-- [ ] Seed 5 rule categories (override, leak, roleplay, secrets, evasion)
-- [ ] Unit tests for each rule category
+## Phase 2 — Layer 1: Input Firewall  ✅
+- [x] Rules loader and regex inspection
+- [x] Block vs. allow decision with reason logging
+- [x] Five seeded rule categories
+- [x] Live rules management (CRUD) in the dashboard
 
-## Phase 3 — Rules Management API  ·
-- [ ] `GET /rules` — list all rules
-- [ ] `POST /rules` — create rule
-- [ ] `PUT /rules/{id}` — edit rule
-- [ ] `DELETE /rules/{id}` — remove rule
-- [ ] Toggle active/inactive per rule
+## Phase 3 — Dashboard  ✅
+- [x] Test page: model selector, firewall toggle, example attacks
+- [x] History page: all attempts with verdicts and entities
+- [x] Rules page: add / edit / delete / toggle
+- [x] Summary page: leak rate off vs. on, per-layer counts
 
-## Phase 4 — React Dashboard  ·
-- [ ] Prompt submission form + model selector (TinyLlama / Mistral)
-- [ ] Live feed table: prompt, matched rule, decision, response
-- [ ] Blocked vs. allowed styling (clear visual distinction)
-- [ ] Rules management UI (add / edit / delete / toggle)
-- [ ] Stats panel: blocked count, allowed count, top rules triggered
+## Phase 4 — Demo Mechanics  ✅
+- [x] Planted fake secret in the model's system prompt
+- [x] Per-request firewall on/off toggle
+- [x] Outcome-based verdict (did the secret leak?)
 
-## Phase 5 — Testing & Baseline  ·
-- [ ] Curate injection test suite (OWASP LLM Top 10, MITRE ATLAS, jailbreak sets)
-- [ ] Run suite against TinyLlama **firewall off** — record failures (baseline)
-- [ ] Run same suite **firewall on** — record blocks
-- [ ] Produce before/after comparison table
-- [ ] Write up findings in `RESULTS.md`
+## Phase 5 — Layer 2: Output DLP  ✅
+- [x] Presidio + spaCy integration
+- [x] Entity detection by shape (credential, SSN, email, credit card, phone)
+- [x] Redaction of detected secrets on output
+- [x] Defense-in-depth: catches input bypasses on the way out
 
-## Phase 6 — Polish & Portfolio  ·
-- [ ] README with screenshots + architecture diagram
-- [ ] Setup/run instructions (one-command start if possible)
-- [ ] Short demo GIF or recording
-- [ ] "Future work" section (AI-classifier detection, output moderation)
-- [ ] Final code cleanup and comments
+---
+
+## Planned enhancements
+
+**Measurement fix (do first):**
+- [ ] Session-level cumulative leak tracking — detect the secret escaping in fragments across multiple turns, so stats stop reporting "safe" when it actually leaked.
+
+**Layer 3 — intent-based detection:**
+- [ ] LLM-as-judge classifier (using Mistral) that reads the prompt/conversation and flags extraction *intent*, regardless of wording — catches reworded and multi-turn (fragmentation) attacks that defeat Layers 1 and 2.
+- [ ] Toggle for Layer 3, matching the existing firewall toggle, for on/off demos.
+
+**Further:**
+- [ ] Expand DLP entity set and add configurable redaction policies.
+- [ ] Output-side rule management (egress rules, not just input).
+- [ ] Package as an OpenAI-compatible proxy so it reads like a real gateway.
+
+---
+
+## Known limitations (documented, not bugs)
+
+- Layers 1 and 2 are stateless and pattern/shape-based; defeated by fragmentation attacks.
+- Leak measurement is per-response until the session-level fix lands.
+- No authentication; local demo only.
